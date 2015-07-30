@@ -26,13 +26,10 @@ func createFile(p string) *os.File {
 }
 
 func writeFile (graph *vstruct.Vgraph, f *os.File) {
-//func (graph *vstruct.Vgraph) writeFile (f *os.File) {
 
         if graph.First == nil {
                 return
         }
-
-        //fmt.Println ("name of graph in dupm is", graph.First.Name)
 
         trav := graph.First;
 
@@ -43,11 +40,10 @@ func writeFile (graph *vstruct.Vgraph, f *os.File) {
                 fmt.Fprintf (f, "volume %s\n    type %s\n", trav.Name, trav.Type)
 
                 /* logic for print volume optins */
-
-                if trav.Children.Next != nil {
+                if trav.Children != nil {
                         fmt.Fprintf (f, "    subvolumes")
 
-                        for xch := trav.Children; xch.Xlator != nil; xch = *xch.Next {
+                        for xch := trav.Children; xch != nil; xch = xch.Next {
                                 fmt.Fprintf (f, " %v", xch.Xlator.Name)
                         }
 

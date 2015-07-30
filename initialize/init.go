@@ -1,6 +1,7 @@
 package initialize
 
 import (
+        "os"
         "fmt"
         "flag"
 )
@@ -27,6 +28,11 @@ func Init () {
 
         fmt.Println ("How many brick")
         fmt.Scanf ("%d", &Bcount)
+
+        if Bcount == 0 {
+                fmt.Println ("Brick count must be greater then 0")
+                os.Exit (2)
+        }
 
         init_brick_option ()
 }

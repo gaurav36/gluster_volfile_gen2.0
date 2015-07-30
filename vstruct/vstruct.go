@@ -12,11 +12,9 @@ type Xlator_t struct {
         Type       string
         Prev      *Xlator_t
         Next      *Xlator_t
-        Parent     Xlator_list_t
-        Children   Xlator_list_t
+        Parent    *Xlator_list_t
+        Children  *Xlator_list_t
         Options    map[string]string
-
-        Graph     *Vgraph
 }
 
 

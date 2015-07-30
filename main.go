@@ -26,8 +26,14 @@ import (
 
 func main () {
         graph       := new (vstruct.Vgraph)
-        graph.First  = new (vstruct.Xlator_t)
-        graph.Top    = new (vstruct.Xlator_t)
+        //graph.First  = new (vstruct.Xlator_t)
+        //graph.Top    = new (vstruct.Xlator_t)
+
+        //graph.First.Parent = new (vstruct.Xlator_list_t)
+        //graph.First.Children = new (vstruct.Xlator_list_t)
+        
+        //graph.Top.Parent = new (vstruct.Xlator_list_t)
+        //graph.Top.Children = new (vstruct.Xlator_list_t)
 
         fmt.Println ("Glusterd 2.0 volfile generation API")
 
