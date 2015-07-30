@@ -1,182 +1,157 @@
-/* file for volfile generation */
+/* Core file for volfile generation */
 
 package write
 
 import (
-        "os"
-        "fmt"
-        //"unsafe"
-        "github.com/gaurav36/gluster_volfile_gen2.0/initialize"
-        "github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
+	"fmt"
+	"os"
+	//"unsafe"
+	"github.com/gaurav36/gluster_volfile_gen2.0/initialize"
+	"github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
 )
 
-func volgen_graph_add_as_root (graph *vstruct.Vgraph, vtype string) {
-        xl := new (vstruct.Xlator_t)
-       
-        xl.Name = initialize.Daemon
-        xl.Type = vtype
+func volgen_graph_add_as_root(Rnode *vstruct.Node_t, vtype string) {
+	node := new(vstruct.Node_t)
 
-        xl.Next = graph.First
+	node.Name = initialize.Daemon
+	node.Type = vtype
 
-        if graph.First != nil {
-                graph.First.Prev = xl
-        }
-
-        graph.First = xl
-        graph.Xl_count++
+	// Rnode.Nodes = append (Rnode.Nodes, *node)
 }
 
-func volgen_graph_add_client_link (graph *vstruct.Vgraph, vtype string, name string) *vstruct.Xlator_t {
-        xl := new (vstruct.Xlator_t)
+func volgen_graph_add_client_link(Cnode *vstruct.Node_t, vtype string, name string) {
+	node := new(vstruct.Node_t)
 
-        xl.Name = name
-        xl.Type = vtype
-
-        xl.Next = graph.First
-
-        if graph.First != nil {
-                graph.First.Prev = xl
-        }
-
-        graph.First = xl
-        graph.Xl_count++
-
-        return xl
+	node.Name = name
+	node.Type = vtype
+	Cnode.Nodes = append(Cnode.Nodes, *node)
 }
 
-func volgen_graph_build_client (cgraph *vstruct.Vgraph) {
-        xl :=  new (vstruct.Xlator_t)
-        
-        //hostname,_ := os.Hostname()
+func volgen_graph_build_client(Cnode *vstruct.Node_t) {
 
-        for i :=0; i < initialize.Bcount; i++ {
+	for i := 0; i < initialize.Bcount; i++ {
+		brick_id := fmt.Sprintf("%v-client-%v", initialize.Volname, i)
+		volgen_graph_add_client_link(Cnode, "protocol/client", brick_id)
 
-                brick_id := fmt.Sprintf ("%v-client-%v", initialize.Volname, i)
-                xl = volgen_graph_add_client_link (cgraph, "protocol/client", brick_id)
+		// To Do: Add options in client sub-graph
+	}
+	fmt.Println("Cnode.Node.Name is: ", Cnode.Nodes)
+}
 
-                fmt.Println ("xl name is: ", xl.Name)
-                //xl.Options["ping-timeout"] = "42"
+func volgen_graph_build_cluster(Cnode *vstruct.Node_t, name string) {
+	node := new(vstruct.Node_t)
 
-                //xl.Options["remote-subvolume"] = "/brick"
+	vtype := fmt.Sprintf("features/%v", initialize.Daemon)
 
-                //xl.Options["transport-type"] = "tcp"
+	node.Name = name
+	node.Type = vtype
 
-                //xl.Options["remote-host"] = hostname
-        }
+	/* Making slice of children with size equal to "range (all client node)" */
+	node.Children = make([]vstruct.Node_t, len(Cnode.Nodes))
+	copy(node.Children, Cnode.Nodes)
+
+	//appending this node(which is having chlidren) to range of client node
+	Cnode.Nodes = append(Cnode.Nodes, *node)
+
+	/* Print one legs of client graph with it parent */
+	/*var temp vstruct.Node_t
+	  var data vstruct.Node_t
+
+	  for _, temp = range Cnode.Nodes {
+	          fmt.Println (" garg temp Name is:", temp.Name)
+	          if temp.Children != nil {
+	                  fmt.Print ("subvolume: ")
+	                  for _, data = range temp.Children {
+	                          fmt.Printf (" %s", data.Name)
+	                  }
+	                  fmt.Println ("")
+	          }
+	  }*/
 
 }
 
-func volgen_xlator_link (paxl *vstruct.Xlator_t, chxl *vstruct.Xlator_t) {       
-        var xl_list_child   *vstruct.Xlator_list_t
-        var xl_list_parent  *vstruct.Xlator_list_t
-        var tmp            **vstruct.Xlator_list_t
+func volgen_graph_merge_client_with_root(Rnode *vstruct.Node_t, Cnode *vstruct.Node_t, vtype string) {
+	var child vstruct.Node_t
+	rnode := new(vstruct.Node_t)
+	node := new(vstruct.Node_t)
 
-        xl_list_child  = new (vstruct.Xlator_list_t)
-        xl_list_parent = new (vstruct.Xlator_list_t)
+	/* Preparing Root Node children */
+	/* Copy all child client parent name to root node children */
+	for _, child = range Cnode.Nodes {
+		if child.Children != nil {
+			tnode := new(vstruct.Node_t)
 
-        xl_list_parent.Xlator = paxl
-        for tmp = &chxl.Parent; *tmp != nil; tmp = &(*tmp).Next {
-        }
-        *tmp = xl_list_parent
+			tnode.Name = child.Name
+			rnode.Nodes = append(rnode.Nodes, *tnode)
+		}
+	}
 
-        xl_list_child.Xlator = chxl
-        for tmp = &paxl.Children; *tmp != nil; tmp = &(*tmp).Next {
-        }
-        *tmp = xl_list_child
+	node.Name = initialize.Daemon
+	node.Type = vtype
+
+	node.Children = make([]vstruct.Node_t, len(rnode.Nodes))
+	copy(node.Children, rnode.Nodes)
+
+	/* Finally make root node with all of its child */
+	Rnode.Nodes = append(Rnode.Nodes, *node)
+
+	//appending Root node to the Client node chain
+	Rnode.Nodes = append(Cnode.Nodes, Rnode.Nodes...)
+
+	var temp vstruct.Node_t
+	var data vstruct.Node_t
+
+	/* Printing complete graph with its root */
+	for _, temp = range Rnode.Nodes {
+		fmt.Println(" graph merge temp Name is:", temp.Name)
+		if temp.Children != nil {
+			fmt.Print("subvolume: ")
+			for _, data = range temp.Children {
+				fmt.Printf(" %s", data.Name)
+			}
+			fmt.Println("")
+		}
+	}
 }
 
-func volgen_link_bricks_from_list_tail (cgraph  *vstruct.Vgraph) {
-        trav   := cgraph.First
-        bcount := initialize.Bcount
-        var i int
+func Generate_graph(Rnode *vstruct.Node_t) {
+	Cnode := new(vstruct.Node_t)
 
-        xl        := new (vstruct.Xlator_t)
-        
-        vtype := fmt.Sprintf ("features/%v", initialize.Daemon)
+	if len(initialize.File_name) != 0 {
+	} else {
+		fmt.Println("Exiting! Please give volfile path")
+		os.Exit(2) /*Exiting with error status 2*/
+	}
 
-        xl = volgen_graph_add_client_link (cgraph, vtype, initialize.Volname)
+	if len(initialize.Volname) != 0 {
+	} else {
+		fmt.Println("Exiting! Please give volume name")
+		os.Exit(2) /*Exiting with error status 2*/
+	}
 
-        /* Traverse to the tail of the graph*/
-        for ; bcount != 1; trav = trav.Next {
-                bcount--;
-        }
-        
-        for ; ; trav = trav.Prev {
-                volgen_xlator_link (xl, trav)
+	if len(initialize.Daemon) != 0 {
+	} else {
+		fmt.Println("Exiting! Please give daemon name")
+		os.Exit(2)
+	}
 
-                if i == initialize.Bcount {
-                        break;
-                }
-                i++
-        }
-}
+	if len(initialize.Brick) != 0 {
+	} else {
+		fmt.Println("Exiting! Please give brick property (globaly/locally)")
+		os.Exit(2)
+	}
 
-func volgen_graph_build_cluster (cgraph  *vstruct.Vgraph) {
-        volgen_link_bricks_from_list_tail (cgraph)
-}
+	// Root of the graph
+	vtype := fmt.Sprintf("features/%s", initialize.Daemon)
+	//volgen_graph_add_as_root (Rnode, vtype)
 
-func link_children_with_parent(parent *vstruct.Xlator_t, child *vstruct.Xlator_t) {
-                
-        volgen_xlator_link (parent, child)       
-}
+	// Building client graph
+	volgen_graph_build_client(Cnode)
 
-func volgen_graph_merge_sub (pgraph *vstruct.Vgraph, sgraph *vstruct.Vgraph) {
-        
-        trav := pgraph.First
-        
-        link_children_with_parent (pgraph.First, sgraph.First)
-        
-        /* Adding parent graph to client sub graph */
-        for ; trav.Next != nil; trav = trav.Next {
-        }
-        trav.Next = sgraph.First
-        trav.Next.Prev = trav
-        pgraph.Xl_count += sgraph.Xl_count
-}
+	// attaching client graph with the associated volume, called as parent
+	// of client graph for volume <VOLNAME>
+	volgen_graph_build_cluster(Cnode, initialize.Volname)
 
-func Generate_graph (graph  *vstruct.Vgraph) {
-
-        cgraph       := new (vstruct.Vgraph)
-
-        if len(initialize.File_name)!= 0 {
-                fmt.Printf ("Graph generation for %v file\n", initialize.File_name)
-        } else {
-                fmt.Println ("Exiting! Please give volfile path")
-                os.Exit(2) /*Exiting with error status 2*/
-        }
-
-        if len(initialize.Volname)!= 0 {
-                fmt.Printf ("Graph generation for volume %v\n", initialize.Volname)
-        } else {
-                fmt.Println ("Exiting! Please give volume name")
-                os.Exit(2) /*Exiting with error status 2*/
-        }
-
-        if len(initialize.Daemon)!= 0 {
-                fmt.Printf ("Graph generation for %v daemon\n", initialize.Daemon)
-        } else {
-                fmt.Println ("Exiting! Please give daemon name")
-                os.Exit(2)
-        }
-
-        if len(initialize.Brick)!= 0 {
-                fmt.Printf ("Graph generation for brick as %v\n", initialize.Brick)
-        } else {
-                fmt.Println ("Exiting! Please give brick property (globaly/locally)")
-                os.Exit(2)
-        }
-
-        /* Root of graph*/
-        vtype := fmt.Sprintf ("features/%s", initialize.Daemon)
-        volgen_graph_add_as_root (graph, vtype)
-
-        /* Building client graph */
-        volgen_graph_build_client (cgraph)
-
-        /* attaching client graph with the associated volume, calls as parent of
-         * client graph for volume <VOLNAME> */
-        volgen_graph_build_cluster (cgraph)
-
-        /* Merge Root of the graph with client subgraph */
-        volgen_graph_merge_sub (graph, cgraph)
+	// merge root of the graph with client subgraph
+	volgen_graph_merge_client_with_root(Rnode, Cnode, vtype)
 }

@@ -12,37 +12,26 @@
  *      local node itself on which volfile generation have called.
  *      can be given by -brick= followed by value (global/local)
  * [4]. 4th argument should be all option's that need to be passed to volfile.
- */ 
+ */
 
 package main
 
 import (
-        "fmt"
-        "github.com/gaurav36/gluster_volfile_gen2.0/write"
-        "github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
-        "github.com/gaurav36/gluster_volfile_gen2.0/initialize"
+	"fmt"
+
+	"github.com/gaurav36/gluster_volfile_gen2.0/initialize"
+	"github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
+	"github.com/gaurav36/gluster_volfile_gen2.0/write"
 )
 
+func main() {
+	graph := new(vstruct.Node_t)
 
-func main () {
-        graph       := new (vstruct.Vgraph)
-        //graph.First  = new (vstruct.Xlator_t)
-        //graph.Top    = new (vstruct.Xlator_t)
+	fmt.Println("Glusterd 2.0 volfile generation API")
 
-        //graph.First.Parent = new (vstruct.Xlator_list_t)
-        //graph.First.Children = new (vstruct.Xlator_list_t)
-        
-        //graph.Top.Parent = new (vstruct.Xlator_list_t)
-        //graph.Top.Children = new (vstruct.Xlator_list_t)
+	initialize.Init()
 
-        fmt.Println ("Glusterd 2.0 volfile generation API")
+	write.Generate_graph(graph)
 
-        initialize.Init ()
-
-        write.Generate_graph (graph)
-
-        write.Dump_graph (graph)
-        //write.Generate_graph (&graph)
-
-        //graph.write.Dump_graph ()
+	write.Dump_graph(graph)
 }
