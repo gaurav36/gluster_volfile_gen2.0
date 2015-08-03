@@ -20,18 +20,16 @@ import (
 	"fmt"
 
 	"github.com/gaurav36/gluster_volfile_gen2.0/initialize"
-	"github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
-	"github.com/gaurav36/gluster_volfile_gen2.0/write"
+	"github.com/gaurav36/gluster_volfile_gen2.0/volgen"
 )
 
 func main() {
-	graph := new(vstruct.Node_t)
 
 	fmt.Println("Glusterd 2.0 volfile generation API")
 
 	initialize.Init()
 
-	write.Generate_graph(graph)
+	graph := volgen.Generate_graph()
 
-	write.Dump_graph(graph)
+	graph.Dump_graph()
 }
