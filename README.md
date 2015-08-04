@@ -11,7 +11,7 @@ https://github.com/gaurav36/gluster_volfile_gen2.0/
 
 if you want to test graph generation using slice then do
 
-go get https://github.com/gaurav36/gluster_volfile_gen2.0/blob/BASE-graph-generation-using-slice
+go get github.com/gaurav36/gluster_volfile_gen2.0/blob/BASE-graph-generation-using-slice
 
 
 

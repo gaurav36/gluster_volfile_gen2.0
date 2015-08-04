@@ -18,8 +18,8 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/gaurav36/gluster_volfile_gen2.0/initialize"
 	"github.com/gaurav36/gluster_volfile_gen2.0/volgen"
 )
 
@@ -27,9 +27,19 @@ func main() {
 
 	fmt.Println("Glusterd 2.0 volfile generation API")
 
-	initialize.Init()
+	volgen.Init()
 
 	graph := volgen.Generate_graph()
 
-	graph.Dump_graph()
+	f, err := os.Create(volgen.File_name)
+	if err != nil {
+		panic(err)
+	}
+	defer closeFile(f)
+
+	graph.DumpGraph(f)
+}
+
+func closeFile(f *os.File) {
+	f.Close()
 }
