@@ -34,13 +34,41 @@ func volgen_graph_add_client_link(cnode *Xlator_t, vtype string, name string) {
 func volgen_graph_build_client(vtype string, name string) *Xlator_t {
 	cnode := new(Xlator_t)
 
-	for i := 0; i < Bcount; i++ {
-		brick_id := fmt.Sprintf("%v-client-%v", Volname, i)
-		volgen_graph_add_client_link(cnode, "protocol/client", brick_id)
-	}
+	var i int
 
-	cnode.Name = name
-	cnode.Type = vtype
+	switch Vtype {
+	case "REPLICATE":
+		for d := 0; d < Dcount; d++ {
+			subnode := new(Xlator_t)
+			for j := 1; j <= ReplicaCount; j++ {
+				brick_id := fmt.Sprintf("%v-client-%v", Volname, i)
+				fmt.Println("brick id is:", brick_id)
+				volgen_graph_add_client_link(subnode, "protocol/client", brick_id)
+
+				i++
+			}
+			sname := fmt.Sprintf("%s-replicate-%d", Volname, d)
+			svtype := "cluster/replicate"
+			subnode.Name = sname
+			subnode.Type = svtype
+			cnode.Children = append(cnode.Children, *subnode)
+		}
+
+		sname := fmt.Sprintf("%s-dht", Volname)
+		svtype := "cluster/distribute"
+
+		cnode.Name = sname
+		cnode.Type = svtype
+	default:
+		// As of now if no volume type given then generate plane distribute volume graph
+		for i := 0; i < Bcount; i++ {
+			brick_id := fmt.Sprintf("%v-client-%v", Volname, i)
+			volgen_graph_add_client_link(cnode, "protocol/client", brick_id)
+		}
+
+		cnode.Name = name
+		cnode.Type = vtype
+	}
 
 	return cnode
 }

@@ -7,17 +7,16 @@ import (
 )
 
 var (
-	File_name, Daemon        string
-	Volname                  string
-	arg_len, Bcount, Replica int
+	File_name, Daemon                     string
+	Volname, Vtype                        string
+	arg_len, Bcount, Dcount, ReplicaCount int
 )
 
 func Init() {
-
 	flag.StringVar(&File_name, "vpath", "", "volfile path")
 	flag.StringVar(&Volname, "volname", "", "volume name")
 	flag.StringVar(&Daemon, "daemon", "", "daemon for which volfile generated")
-	flag.IntVar(&Replica, "replica", 0, "whether volfile contain local node brick or all nodes brick")
+	flag.IntVar(&ReplicaCount, "replica", 0, "whether volfile contain local node brick or all nodes brick")
 
 	flag.Parse()
 
@@ -50,9 +49,16 @@ func Init() {
 		os.Exit(2)
 	}
 
-	if (Replica != 0) && (Bcount%Replica != 0) {
-		fmt.Println("Exiting! Replica count should be multiple of brick count")
-		os.Exit(2)
+	if ReplicaCount != 0 {
+		if ReplicaCount == 1 {
+			fmt.Println("Error! Replica count must be grater then 1")
+			os.Exit(2)
+		} else if Bcount%ReplicaCount != 0 {
+			fmt.Println("Exiting! Replica count should be multiple of brick count")
+			os.Exit(2)
+		} else {
+			Dcount = Bcount / ReplicaCount
+			Vtype = "REPLICATE"
+		}
 	}
-
 }
