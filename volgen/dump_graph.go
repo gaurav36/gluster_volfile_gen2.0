@@ -22,10 +22,6 @@ func (graph Xlator_t) DumpGraph(w io.Writer) {
 	if graph.Children != nil {
 		fmt.Fprintf(w, "    subvolumes")
 
-		for k, v := range graph.Options {
-			fmt.Fprintf(w, "    options %v %v\n", k, v)
-		}
-
 		for _, graph := range graph.Children {
 			fmt.Fprintf(w, " %v", graph.Name)
 		}

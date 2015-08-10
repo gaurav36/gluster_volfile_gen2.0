@@ -8,7 +8,7 @@ import (
 
 var (
 	File_name, Daemon                     string
-	Volname, Vtype                        string
+	Volname, Vtype, Gtype                 string
 	arg_len, Bcount, Dcount, ReplicaCount int
 )
 
@@ -16,20 +16,13 @@ func Init() {
 	flag.StringVar(&File_name, "vpath", "", "volfile path")
 	flag.StringVar(&Volname, "volname", "", "volume name")
 	flag.StringVar(&Daemon, "daemon", "", "daemon for which volfile generated")
-	flag.IntVar(&ReplicaCount, "replica", 0, "whether volfile contain local node brick or all nodes brick")
+	flag.IntVar(&ReplicaCount, "replica", 0, "Replica count for replicate volume")
+	flag.StringVar(&Gtype, "gtype", "", "Graph type for eg: fuse, nfs, bitd, scrubd, shd etc..")
 
 	flag.Parse()
 
 	fmt.Printf("file name is %v, volume name is %s, daemon is %v\n",
 		File_name, Volname, Daemon)
-
-	fmt.Println("How many brick")
-	fmt.Scanf("%d", &Bcount)
-
-	if Bcount == 0 {
-		fmt.Println("Brick count must be greater then 0")
-		os.Exit(2)
-	}
 
 	if len(File_name) != 0 {
 	} else {
@@ -46,6 +39,20 @@ func Init() {
 	if len(Daemon) != 0 {
 	} else {
 		fmt.Println("Exiting! Please give daemon name")
+		os.Exit(2)
+	}
+
+	if len(Gtype) != 0 {
+	} else {
+		fmt.Println("Exiting! Please give Graph name for which you want to generate graph")
+		os.Exit(2)
+	}
+
+	fmt.Println("How many brick")
+	fmt.Scanf("%d", &Bcount)
+
+	if Bcount == 0 {
+		fmt.Println("Brick count must be greater then 0")
 		os.Exit(2)
 	}
 
