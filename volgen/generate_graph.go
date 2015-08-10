@@ -42,7 +42,6 @@ func volgen_graph_build_client(vtype string, name string) *Xlator_t {
 			subnode := new(Xlator_t)
 			for j := 1; j <= ReplicaCount; j++ {
 				brick_id := fmt.Sprintf("%v-client-%v", Volname, i)
-				fmt.Println("brick id is:", brick_id)
 				volgen_graph_add_client_link(subnode, "protocol/client", brick_id)
 
 				i++
@@ -77,9 +76,54 @@ func volgen_graph_merge_client_with_root(Graph *Xlator_t, Craph *Xlator_t) {
 	Graph.Children = append(Graph.Children, *Craph)
 }
 
+func fuse_volgen_graph_build_xlator(cgraph *Xlator_t) *Xlator_t {
+	var mgraph Xlator_t
+	var kgraph *Xlator_t
+	fdictk := [...]string{
+		"open-behind", "quick-read", "io-cache",
+		"readdir-ahead", "read-ahead", "write-behind",
+	}
+	fdictv := [...]string{
+		"performance/open-behind", "performance/quick-read",
+		"performance/io-cache", "performance/readdir-ahead",
+		"performance/read-ahead", "performance/write-behind",
+	}
+
+	mgraph.Name = fmt.Sprintf("%v-md-cache", Volname)
+	mgraph.Type = fmt.Sprintf("performance/md-cache")
+	for v, k := range fdictk {
+		tgraph := new(Xlator_t)
+		tgraph.Name = fmt.Sprintf("%v-%v", Volname, k)
+		tgraph.Type = fmt.Sprintf("%v", fdictv[v])
+		if v == 0 {
+			mgraph.Children = append(mgraph.Children, *tgraph)
+			(kgraph) = (&mgraph.Children[0])
+			continue
+		}
+		kgraph.Children = append(kgraph.Children, *tgraph)
+		kgraph = (&kgraph.Children[0])
+	}
+
+	/* Appending all client graph as a child of write-behind translator*/
+	kgraph.Children = append(kgraph.Children, *cgraph)
+
+	return &mgraph
+}
+
+func volgen_graph_build_xlator(Cgraph *Xlator_t, gtype string) *Xlator_t {
+	mgraph := new(Xlator_t)
+
+	switch gtype {
+	case "FUSE":
+		mgraph = fuse_volgen_graph_build_xlator(Cgraph)
+	}
+	return mgraph
+}
+
 func Generate_graph() *Xlator_t {
 	Graph := new(Xlator_t)
 	Cgraph := new(Xlator_t)
+	Mgraph := new(Xlator_t)
 
 	// Root of the graph
 	vtype := fmt.Sprintf("features/%s", Daemon)
@@ -91,8 +135,11 @@ func Generate_graph() *Xlator_t {
 	vtype = fmt.Sprintf("cluster/distribute")
 	Cgraph = volgen_graph_build_client(vtype, Volname)
 
+	Mgraph = volgen_graph_build_xlator(Cgraph, Gtype)
+
 	// merge root of the graph with client subgraph
-	volgen_graph_merge_client_with_root(Graph, Cgraph)
+	volgen_graph_merge_client_with_root(Graph, Mgraph)
+	//volgen_graph_merge_client_with_root(Graph, Cgraph)
 
 	return Graph
 }
