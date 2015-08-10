@@ -24,20 +24,42 @@ import (
 )
 
 func main() {
+	var i, j int
 
 	fmt.Println("Glusterd 2.0 volfile generation API")
 
 	volgen.Init()
 
-	graph := volgen.Generate_graph()
-
-	f, err := os.Create(volgen.File_name)
-	if err != nil {
-		panic(err)
+	if volgen.Gtype == "SERVER" {
+		i = volgen.Bcount
+	} else {
+		i = 1
 	}
-	defer closeFile(f)
 
-	graph.DumpGraph(f)
+	hname, _ := os.Hostname()
+
+	for ; j < i; j++ {
+		graph := volgen.Generate_graph()
+
+		fname := fmt.Sprintf("/tmp/%s.%s.brick%d.vol", volgen.Volname, hname, j)
+
+		if volgen.Gtype == "SERVER" {
+			f, err := os.Create(fname)
+			if err != nil {
+				panic(err)
+			}
+			defer closeFile(f)
+			graph.DumpGraph(f)
+		} else {
+			f, err := os.Create(volgen.File_name)
+			if err != nil {
+				panic(err)
+			}
+			defer closeFile(f)
+			graph.DumpGraph(f)
+		}
+
+	}
 }
 
 func closeFile(f *os.File) {

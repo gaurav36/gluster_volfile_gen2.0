@@ -18,6 +18,16 @@ func volgen_graph_add_as_root(graph *Xlator_t, vtype string) {
 		// Add option to fuse graph
 		graph.Options["count-fop-hits"] = "off"
 		graph.Options["latency-measurement"] = "off"
+	case "SERVER":
+		gname := fmt.Sprintf("%s-server", Volname)
+		graph.Name = gname
+		graph.Type = "protocol/server"
+
+		graph.Options = make(map[string]string)
+
+		// Add option to server graph
+		graph.Options["auth.addr./brr1.allow"] = "*"
+		graph.Options["transport-type"] = "tcp"
 	default:
 		graph.Name = Daemon
 		graph.Type = vtype
@@ -122,12 +132,57 @@ func fuse_volgen_graph_build_xlator(cgraph *Xlator_t) *Xlator_t {
 	return &mgraph
 }
 
+func server_volgen_graph_build_xlator() *Xlator_t {
+	var mgraph Xlator_t
+	var kgraph *Xlator_t
+	sdictk := [...]string{
+		"read-only", "worm", "quota",
+		"index", "barrier", "marker",
+		"io-thread", "upcall", "locks",
+		"access-control", "bitrot-stub",
+		"changelog", "changelogtimerecord",
+		"trash", "posix",
+	}
+	sdictv := [...]string{
+		"features/read-only", "features/worm",
+		"features/quota", "features/index",
+		"features/barrier", "features/marker",
+		"performance/io-threads", "features/upcall",
+		"features/locks", "features/access-control",
+		"features/bitrot-stub", "features/changelog",
+		"features/changetimerecorder", "features/trash",
+		"storage/posix",
+	}
+
+	mgraph.Name = fmt.Sprintf("brick")
+	mgraph.Type = fmt.Sprintf("debug/io-stats")
+	mgraph.Options = make(map[string]string)
+	mgraph.Options["count-fop-hits"] = "off"
+	mgraph.Options["latency-measurement"] = "off"
+	for v, k := range sdictk {
+		tgraph := new(Xlator_t)
+		tgraph.Name = fmt.Sprintf("%v-%v", Volname, k)
+		tgraph.Type = fmt.Sprintf("%v", sdictv[v])
+		if v == 0 {
+			mgraph.Children = append(mgraph.Children, *tgraph)
+			(kgraph) = (&mgraph.Children[0])
+			continue
+		}
+		kgraph.Children = append(kgraph.Children, *tgraph)
+		kgraph = (&kgraph.Children[0])
+	}
+
+	return &mgraph
+}
+
 func volgen_graph_build_xlator(Cgraph *Xlator_t, gtype string) *Xlator_t {
 	mgraph := new(Xlator_t)
 
 	switch gtype {
 	case "FUSE":
 		mgraph = fuse_volgen_graph_build_xlator(Cgraph)
+	case "SERVER":
+		mgraph = server_volgen_graph_build_xlator()
 	}
 	return mgraph
 }
@@ -144,11 +199,15 @@ func Generate_graph() *Xlator_t {
 	// Building client graph
 	// To Do: call below function for total number of volume. As of now
 	// Its only for single volume
-	vtype = fmt.Sprintf("cluster/distribute")
-	Cgraph = volgen_graph_build_client(vtype, Volname)
+	// Do not build client graph for server volfile.
+	if Gtype != "SERVER" {
+		vtype = fmt.Sprintf("cluster/distribute")
+		Cgraph = volgen_graph_build_client(vtype, Volname)
+	}
 
 	// Build the translator graph which will be added bw client and root of
-	// the graph
+	// the graph other wise in case of server graph merge server graph
+	// with rest of the graph
 	Mgraph = volgen_graph_build_xlator(Cgraph, Gtype)
 
 	// merge root of the graph with rest of the graph
