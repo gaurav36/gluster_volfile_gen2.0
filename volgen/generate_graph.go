@@ -7,6 +7,11 @@ import (
 	"os"
 )
 
+type trans struct {
+	Name string
+	Type string
+}
+
 func volgen_graph_add_as_root(graph *Xlator_t, vtype string) {
 	switch Gtype {
 	case "FUSE":
@@ -87,7 +92,7 @@ func volgen_graph_build_client(vtype string, name string) *Xlator_t {
 			volgen_graph_add_client_link(cnode, "protocol/client", brick_id)
 		}
 
-		cnode.Name = name
+		cnode.Name = fmt.Sprintf("%s-dht", name)
 		cnode.Type = vtype
 	}
 
@@ -98,25 +103,51 @@ func volgen_graph_merge_client_with_root(Graph *Xlator_t, Craph *Xlator_t) {
 	Graph.Children = append(Graph.Children, *Craph)
 }
 
-func fuse_volgen_graph_build_xlator(cgraph *Xlator_t) *Xlator_t {
-	var mgraph Xlator_t
-	var kgraph *Xlator_t
-	fdictk := [...]string{
-		"open-behind", "quick-read", "io-cache",
-		"readdir-ahead", "read-ahead", "write-behind",
-	}
-	fdictv := [...]string{
-		"performance/open-behind", "performance/quick-read",
-		"performance/io-cache", "performance/readdir-ahead",
-		"performance/read-ahead", "performance/write-behind",
-	}
+/* Adding options to translator*/
+func volgen_graph_add_option(tgraph *Xlator_t) {
+	tgraph.Options = make(map[string]string)
 
-	mgraph.Name = fmt.Sprintf("%v-md-cache", Volname)
-	mgraph.Type = fmt.Sprintf("performance/md-cache")
-	for v, k := range fdictk {
+	switch tgraph.Type {
+	case "storage/posix":
+		tgraph.Options["update-link-count-parent"] = "on"
+	case "features/trash":
+		tgraph.Options["trash-internal-op"] = "off"
+		tgraph.Options["trash-dir"] = ".trashcan"
+	case "features/changetimerecorder":
+		tgraph.Options["record-counters"] = "off"
+		tgraph.Options["ctr-enabled"] = "off"
+		tgraph.Options["record-entry"] = "on"
+		tgraph.Options["ctr_inode_heal_expire_period"] = "300"
+		tgraph.Options["ctr_link_consistency"] = "off"
+		tgraph.Options["record-exit"] = "off"
+		tgraph.Options["hot-brick"] = "off"
+		tgraph.Options["db-type"] = "sqlite3"
+	case "features/changelog":
+		tgraph.Options["changelog-barrier-timeout"] = "120"
+	case "features/upcall":
+		tgraph.Options["cache-invalidation"] = "off"
+	case "features/marker":
+		tgraph.Options["inode-quota"] = "on"
+		tgraph.Options["gsync-force-xtime"] = "off"
+		tgraph.Options["xtime"] = "off"
+	case "features/quota":
+		tgraph.Options["deem-statfs"] = "on"
+		tgraph.Options["timeout"] = "0"
+		tgraph.Options["server-quota"] = "on"
+	case "features/read-only":
+		tgraph.Options["read-only"] = "off"
+	default:
+		tgraph.Options = nil
+	}
+}
+
+func volgen_graph_link_parent_to_children(mgraph *Xlator_t, xdict []trans) *Xlator_t {
+	var kgraph *Xlator_t
+	for v, k := range xdict {
 		tgraph := new(Xlator_t)
-		tgraph.Name = fmt.Sprintf("%v-%v", Volname, k)
-		tgraph.Type = fmt.Sprintf("%v", fdictv[v])
+		tgraph.Name = fmt.Sprintf("%v-%v", Volname, k.Name)
+		tgraph.Type = fmt.Sprintf("%v", k.Type)
+		volgen_graph_add_option(tgraph)
 		if v == 0 {
 			mgraph.Children = append(mgraph.Children, *tgraph)
 			(kgraph) = (&mgraph.Children[0])
@@ -126,32 +157,52 @@ func fuse_volgen_graph_build_xlator(cgraph *Xlator_t) *Xlator_t {
 		kgraph = (&kgraph.Children[0])
 	}
 
+	return kgraph
+}
+
+func fuse_volgen_graph_build_xlator(cgraph *Xlator_t) *Xlator_t {
+	var mgraph Xlator_t
+
+	fdict := []trans{
+		trans{Name: "open-behind", Type: "performance/open-behind"},
+		trans{Name: "quick-read", Type: "performance/quick-read"},
+		trans{Name: "io-cache", Type: "performance/io-cache"},
+		trans{Name: "readdir-ahead", Type: "performance/readdir-ahead"},
+		trans{Name: "read-ahead", Type: "performance/read-ahead"},
+		trans{Name: "write-behind", Type: "performance/write-behind"},
+	}
+
+	mgraph.Name = fmt.Sprintf("%v-md-cache", Volname)
+	mgraph.Type = fmt.Sprintf("performance/md-cache")
+
+	/* Adding all above fdict[] translator to graph */
+	fgraph := volgen_graph_link_parent_to_children(&mgraph, fdict)
+
 	/* Appending all client graph as a child of write-behind translator*/
-	kgraph.Children = append(kgraph.Children, *cgraph)
+	fgraph.Children = append(fgraph.Children, *cgraph)
 
 	return &mgraph
 }
 
 func server_volgen_graph_build_xlator() *Xlator_t {
 	var mgraph Xlator_t
-	var kgraph *Xlator_t
-	sdictk := [...]string{
-		"read-only", "worm", "quota",
-		"index", "barrier", "marker",
-		"io-thread", "upcall", "locks",
-		"access-control", "bitrot-stub",
-		"changelog", "changelogtimerecord",
-		"trash", "posix",
-	}
-	sdictv := [...]string{
-		"features/read-only", "features/worm",
-		"features/quota", "features/index",
-		"features/barrier", "features/marker",
-		"performance/io-threads", "features/upcall",
-		"features/locks", "features/access-control",
-		"features/bitrot-stub", "features/changelog",
-		"features/changetimerecorder", "features/trash",
-		"storage/posix",
+
+	sdict := []trans{
+		trans{Name: "read-only", Type: "features/read-only"},
+		trans{Name: "worm", Type: "features/worm"},
+		trans{Name: "quota", Type: "features/quota"},
+		trans{Name: "index", Type: "features/index"},
+		trans{Name: "barrier", Type: "features/barrier"},
+		trans{Name: "marker", Type: "features/marker"},
+		trans{Name: "io-thread", Type: "performance/io-threads"},
+		trans{Name: "upcall", Type: "features/upcall"},
+		trans{Name: "locks", Type: "features/locks"},
+		trans{Name: "access-control", Type: "features/access-control"},
+		trans{Name: "bitrot-stub", Type: "features/bitrot-stub"},
+		trans{Name: "changelog", Type: "features/changelog"},
+		trans{Name: "changelogtimerecord", Type: "features/changetimerecorder"},
+		trans{Name: "trash", Type: "features/trash"},
+		trans{Name: "posix", Type: "storage/posix"},
 	}
 
 	mgraph.Name = fmt.Sprintf("brick")
@@ -159,18 +210,9 @@ func server_volgen_graph_build_xlator() *Xlator_t {
 	mgraph.Options = make(map[string]string)
 	mgraph.Options["count-fop-hits"] = "off"
 	mgraph.Options["latency-measurement"] = "off"
-	for v, k := range sdictk {
-		tgraph := new(Xlator_t)
-		tgraph.Name = fmt.Sprintf("%v-%v", Volname, k)
-		tgraph.Type = fmt.Sprintf("%v", sdictv[v])
-		if v == 0 {
-			mgraph.Children = append(mgraph.Children, *tgraph)
-			(kgraph) = (&mgraph.Children[0])
-			continue
-		}
-		kgraph.Children = append(kgraph.Children, *tgraph)
-		kgraph = (&kgraph.Children[0])
-	}
+
+	/* Adding all above sdict[] translator to graph */
+	volgen_graph_link_parent_to_children(&mgraph, sdict)
 
 	return &mgraph
 }
