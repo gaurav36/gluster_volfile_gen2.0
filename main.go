@@ -12,37 +12,56 @@
  *      local node itself on which volfile generation have called.
  *      can be given by -brick= followed by value (global/local)
  * [4]. 4th argument should be all option's that need to be passed to volfile.
- */ 
+ */
 
 package main
 
 import (
-        "fmt"
-        "github.com/gaurav36/gluster_volfile_gen2.0/write"
-        "github.com/gaurav36/gluster_volfile_gen2.0/vstruct"
-        "github.com/gaurav36/gluster_volfile_gen2.0/initialize"
+	"fmt"
+	"os"
+
+	"github.com/gaurav36/gluster_volfile_gen2.0/volgen"
 )
 
+func main() {
+	var i, j int
 
-func main () {
-        graph       := new (vstruct.Vgraph)
-        //graph.First  = new (vstruct.Xlator_t)
-        //graph.Top    = new (vstruct.Xlator_t)
+	fmt.Println("Glusterd 2.0 volfile generation API")
 
-        //graph.First.Parent = new (vstruct.Xlator_list_t)
-        //graph.First.Children = new (vstruct.Xlator_list_t)
-        
-        //graph.Top.Parent = new (vstruct.Xlator_list_t)
-        //graph.Top.Children = new (vstruct.Xlator_list_t)
+	volgen.Init()
 
-        fmt.Println ("Glusterd 2.0 volfile generation API")
+	if volgen.Gtype == "SERVER" {
+		i = volgen.Bcount
+	} else {
+		i = 1
+	}
 
-        initialize.Init ()
+	hname, _ := os.Hostname()
 
-        write.Generate_graph (graph)
+	for ; j < i; j++ {
+		graph := volgen.Generate_graph()
 
-        write.Dump_graph (graph)
-        //write.Generate_graph (&graph)
+		fname := fmt.Sprintf("/tmp/%s.%s.brick%d.vol", volgen.Volname, hname, j)
 
-        //graph.write.Dump_graph ()
+		if volgen.Gtype == "SERVER" {
+			f, err := os.Create(fname)
+			if err != nil {
+				panic(err)
+			}
+			defer closeFile(f)
+			graph.DumpGraph(f)
+		} else {
+			f, err := os.Create(volgen.File_name)
+			if err != nil {
+				panic(err)
+			}
+			defer closeFile(f)
+			graph.DumpGraph(f)
+		}
+
+	}
+}
+
+func closeFile(f *os.File) {
+	f.Close()
 }
